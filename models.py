@@ -7,17 +7,15 @@ class User(UserMixin):
         self.username = username
         self.password_hash = password_hash
 
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
     @staticmethod
     def get(user_id):
-        # This is a simplistic user store. In a real app, you'd use a database.
-        users = {
-            1: User(1, 'user1', generate_password_hash('password1')),
-            2: User(2, 'user2', generate_password_hash('password2')),
-        }
+        users = User.get_users()
         return users.get(int(user_id))
+
+    @staticmethod
+    def get_by_username(username):
+        users = User.get_users()
+        return next((user for user in users.values() if user.username == username), None)
 
     @staticmethod
     def get_users():
@@ -25,3 +23,6 @@ class User(UserMixin):
             1: User(1, 'user1', generate_password_hash('password1')),
             2: User(2, 'user2', generate_password_hash('password2')),
         }
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)

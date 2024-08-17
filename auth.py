@@ -9,10 +9,10 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        user = next((user for user in User.get_users().values() if user.username == username), None)
+        user = User.get_by_username(username)
         if user and user.check_password(password):
             login_user(user)
-            return redirect(url_for('main.index'))  # Changed from 'main.dashboard' to 'main.index'
+            return redirect(url_for('index'))  # Redirect to the main index page after login
         flash('Invalid username or password')
     return render_template('login.html')
 
