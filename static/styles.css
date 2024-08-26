@@ -1,5 +1,5 @@
 body, html {
-    font-family: Arial, sans-serif;
+    font-family: 'Roboto', sans-serif;
     margin: 0;
     padding: 0;
     background-color: #f0f0f0;
@@ -63,13 +63,20 @@ button:hover {
 }
 
 .header {
-    background-color: #ffffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     padding: 10px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    background-color: #f8f9fa;
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
 }
 
 .company-logo {
-    max-height: 50px;
+    height: 50px;
 }
 
 .main-content {
@@ -140,4 +147,12 @@ button:hover {
     background-size: contain;
     vertical-align: middle;
     margin-right: 5px;
+}
+
+.user-info {
+    text-align: right;
+}
+
+.logout-btn {
+    margin-left: 10px;
 }
