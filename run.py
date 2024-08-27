@@ -8,11 +8,28 @@ from pathlib import Path
 from shiny import App
 import threading
 
+import pandas as pd
+
+static_dir = Path(__file__).parent / "static"
+print(f"Static directory path: {static_dir}")
+print(f"Does static directory exist? {static_dir.exists()}")
+print(f"Does styles.css exist? {(static_dir / 'styles.css').exists()}")
+#######################################################################################
 static_dir = Path(__file__).parent / "static"
 print(f"Static directory path: {static_dir}")
 print(f"Does static directory exist? {static_dir.exists()}")
 print(f"Does styles.css exist? {(static_dir / 'styles.css').exists()}")
 
+# Add debugging for CSV file
+csv_path = Path(__file__).parent / 'transaction_data.csv'
+print(f"CSV file path: {csv_path}")
+print(f"Does CSV file exist? {csv_path.exists()}")
+
+if csv_path.exists():
+    df = pd.read_csv(csv_path, nrows=1)  # Read just the first row to get column names
+    print("Columns in the CSV file:")
+    print(df.columns.tolist())
+######################################################################################
 app = Flask(__name__, static_folder=str(static_dir))
 app.config.from_object(Config)
 

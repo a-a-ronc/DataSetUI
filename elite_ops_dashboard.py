@@ -17,18 +17,44 @@ df['order_id'] = df['order_id'].astype(str)
 # Load product data
 product_df = pd.read_csv(current_dir / 'product_data_revised.csv', encoding='utf-8')
 
-# Prepare daily activity data
-shipment_agg = df.groupby('order_id').agg(
-    lines=('order_id', 'size'),
-    qty=('quantity', 'sum'),
-    date=('date', 'max')
-).reset_index(drop=True)
-
-daily_activity = shipment_agg.groupby('date').agg(
-    daily_orders=('date', 'size'),
-    daily_lines=('lines', 'sum'),
-    daily_qty=('qty', 'sum')
-).reset_index()
+def calculate_stats(transaction_data):
+    # Initial calculations with updated column names
+    min_date = transaction_data['date'].min()
+    max_date = transaction_data['date'].max()
+    total_orders = transaction_data['order_id'].nunique()
+    total_lines = len(transaction_data)
+    total_pieces = transaction_data['quantity'].sum(skipna=True)
+    
+    # Average calculations
+    lines_per_order = total_lines / total_orders
+    pieces_per_line = total_pieces / total_lines
+    pieces_per_order = total_pieces / total_orders
+    
+    # Creating a DataFrame to hold results
+    result_df = pd.DataFrame({
+        'statistic': [
+            "Start Date",
+            "End Date",
+            "Total Orders",
+            "Total Lines",
+            "Total Pieces",
+            "Avg Lines per Order",
+            "Avg Pieces per Line",
+            "Avg Pieces per Order"
+        ],
+        'result': [
+            min_date.strftime('%Y-%m-%d'),
+            max_date.strftime('%Y-%m-%d'),
+            f"{total_orders:,}",
+            f"{total_lines:,}",
+            f"{total_pieces:,.2f}",
+            f"{lines_per_order:.2f}",
+            f"{pieces_per_line:.2f}",
+            f"{pieces_per_order:.2f}"
+        ]
+    })
+    
+    return result_df
 
 def create_app(username, static_dir):
     app_ui = ui.page_fluid(
@@ -36,7 +62,24 @@ def create_app(username, static_dir):
             ui.tags.link(rel="stylesheet", href="http://127.0.0.1:5000/static/styles.css"),
             ui.tags.link(rel="stylesheet", href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap"),
             ui.tags.script(src="https://cdn.plot.ly/plotly-2.20.0.min.js"),
+
+            ui.tags.style("""
+                .summary-stats-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    background-color: #ffffff;
+                }
+                .summary-stats-table th, .summary-stats-table td {
+                    text-align: left;
+                    padding: 8px;
+                    border-bottom: 1px solid #ddd;
+                }
+                .summary-stats-table th {
+                    background-color: #ffffff;
+                }
+            """)
         ),
+
         ui.div(
             {"class": "header"},
             ui.div(
@@ -61,7 +104,7 @@ def create_app(username, static_dir):
             ui.nav_panel("Summary", 
                 ui.layout_sidebar(
                     ui.sidebar(
-                        ui.h3("Controls"),
+                        ui.h3("CHART EDITOR"),
                         ui.input_date("start_date", "Start date:", value=df['date'].min().date()),
                         ui.input_date("end_date", "End date:", value=df['date'].max().date()),
                         ui.input_selectize(
@@ -77,6 +120,9 @@ def create_app(username, static_dir):
                             choices=["Line", "Bar"],
                         ),
                     ),
+                    ui.h2("Summary Statistics"),
+                    ui.output_table("summary_stats"),
+                    ui.h2("Daily Activity"),
                     ui.output_ui("activity_plot"),
                     ui.h2("Top Products"),
                     ui.output_ui("top_products_plot"),
@@ -124,29 +170,51 @@ def create_app(username, static_dir):
         def filtered_data():
             start_date = pd.to_datetime(input.start_date()).floor('D')
             end_date = pd.to_datetime(input.end_date()).ceil('D') - pd.Timedelta(seconds=1)
-            mask = (daily_activity['date'] >= start_date) & (daily_activity['date'] <= end_date)
-            return daily_activity[mask]
-
-        @reactive.Calc
-        def filtered_df():
-            start_date = pd.to_datetime(input.start_date()).floor('D')
-            end_date = pd.to_datetime(input.end_date()).ceil('D') - pd.Timedelta(seconds=1)
             mask = (df['date'] >= start_date) & (df['date'] <= end_date)
             return df[mask]
 
         @output
         @render.ui
+        def summary_stats():
+            data = filtered_data()
+            stats_df = calculate_stats(data)
+            
+            ################################ Create a custom HTML table
+            table_html = ui.HTML(f"""
+                <table class="summary-stats-table">
+                    <thead>
+                        <tr>
+                            <th>Statistic</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {"".join(f"<tr><td>{row['statistic']}</td><td>{row['result']}</td></tr>" for _, row in stats_df.iterrows())}
+                    </tbody>
+                </table>
+            """)
+            
+            return table_html
+
+        @output
+        @render.ui
         def activity_plot():
             data = filtered_data()
+            daily_activity = data.groupby('date').agg(
+                daily_orders=('order_id', 'nunique'),
+                daily_lines=('order_id', 'count'),
+                daily_qty=('quantity', 'sum')
+            ).reset_index()
+            
             metrics = input.metrics()
             if isinstance(metrics, str):
                 metrics = [metrics]
             if input.chart_type() == "Line":
-                fig = px.line(data, x='date', y=metrics,
+                fig = px.line(daily_activity, x='date', y=metrics,
                               labels={'value': 'Count', 'variable': 'Metric'},
                               title='Daily Activity')
             else:
-                fig = px.bar(data, x='date', y=metrics,
+                fig = px.bar(daily_activity, x='date', y=metrics,
                              labels={'value': 'Count', 'variable': 'Metric'},
                              title='Daily Activity')
             
@@ -163,7 +231,7 @@ def create_app(username, static_dir):
         @output
         @render.ui
         def top_products_plot():
-            data = filtered_df()
+            data = filtered_data()
             if 'sku_id' not in data.columns or 'quantity' not in data.columns:
                 return ui.p("No data available")
             top_products = data.groupby('sku_id')['quantity'].sum().nlargest(input.top_n()).sort_values(ascending=True)
