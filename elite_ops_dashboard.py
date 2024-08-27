@@ -97,7 +97,7 @@ def create_app(username, static_dir):
             ui.div(
                 {"class": "user-info"},
                 ui.output_text("user_greeting"),
-                ui.a("Logout", href="/logout", class_="logout-btn")
+                ui.a("Logout", href="http://127.0.0.1:5000/logout", class_="logout-btn")
             )
         ),
         ui.navset_tab(

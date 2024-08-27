@@ -1,5 +1,5 @@
 from flask import Flask, render_template, redirect, url_for, send_from_directory
-from flask_login import LoginManager, login_required, current_user
+from flask_login import LoginManager, login_required, current_user, logout_user
 from elite_ops_dashboard import create_app as create_shiny_app
 from models import User
 from config import Config
@@ -10,10 +10,6 @@ import threading
 
 import pandas as pd
 
-static_dir = Path(__file__).parent / "static"
-print(f"Static directory path: {static_dir}")
-print(f"Does static directory exist? {static_dir.exists()}")
-print(f"Does styles.css exist? {(static_dir / 'styles.css').exists()}")
 #######################################################################################
 static_dir = Path(__file__).parent / "static"
 print(f"Static directory path: {static_dir}")
@@ -30,6 +26,7 @@ if csv_path.exists():
     print("Columns in the CSV file:")
     print(df.columns.tolist())
 ######################################################################################
+
 app = Flask(__name__, static_folder=str(static_dir))
 app.config.from_object(Config)
 
@@ -64,6 +61,12 @@ def index():
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory(static_dir, filename)
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('auth.login'))
 
 if __name__ == '__main__':
     print("Starting Flask app...")
